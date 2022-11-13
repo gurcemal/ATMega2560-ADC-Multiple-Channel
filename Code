@@ -1,0 +1,96 @@
+
+uint16_t button_value = 0;
+
+void setup() {
+  Serial.begin(9600);
+  ADC_Init();
+}
+
+void loop() {
+  button_value = GetButtonValue(ADC_Read(0));
+  Serial.print("    ADC 0 (Button Value): ");
+  Serial.print(button_value);
+  delay(50);
+  Serial.print("    ADC 13 (Pot Value): ");
+  Serial.println(ADC_Read(13));
+  delay(50);
+}
+
+
+
+void ADC_Init() {
+  ADCSRA |= (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0);   // Prescaler:128
+  ADMUX  |= (1 << REFS0);                                 // Reference
+  ADMUX  |= (1 << ADLAR);                                 // adjusted left
+  ADCSRA |= (1 << ADEN);                                  //  ADC active
+}
+
+
+
+uint16_t ADC_Read(uint8_t ADC_pin) {
+  uint16_t pot_value = 0;
+  uint8_t potValueH = 0, potValueL = 0;
+  
+  ADMUX  &= 0b11100000;
+  DIDR0  = 0;
+  DIDR1  = 0;
+  
+  if (ADC_pin > 16 || ADC_pin < 0) {
+    return 65535;
+  }
+  
+  else if (ADC_pin >= 0 && ADC_pin <= 15) {
+    if (ADC_pin <= 7)  {
+      ADCSRB &= (~(1 << MUX5));
+      DIDR0 |= (1 << ADC_pin);
+    }
+    else if (ADC_pin >= 8) {
+      ADCSRB |= (1 << MUX5);
+      ADC_pin = ADC_pin - 8;
+      DIDR1 |= (1 << ADC_pin);
+    }
+    
+    ADMUX  |= ADC_pin;        //channel activated
+    ADCSRA |= (1 << ADSC);    // Start conversation
+    
+    while (ADCSRA & (1 << ADSC));
+    
+    potValueL = (ADCL | (0 << ADCL));
+    potValueH = (ADCH | (0 << ADCH));
+    potValueL = potValueL >> 6;
+    pot_value = potValueH << 2;
+    pot_value = (pot_value | potValueL);
+    
+    return pot_value;
+  }
+}
+
+
+
+uint16_t GetButtonValue(uint16_t analog_value) {
+  Serial.print("Selected Button: ");
+  if (analog_value >= 1015  && analog_value <= 1025) {
+    Serial.print("EMPTY");
+    return 1023;  //BOŞ
+  }
+  else if (analog_value >= 635  && analog_value <= 645) {
+    Serial.print("SELECT");
+    return 640; //SELECT
+  }
+  else if (analog_value >= 405  && analog_value <= 415) {
+    Serial.print("LEFT");
+    return 410; //LEFT
+  }
+  else if (analog_value >= 250  && analog_value <= 260) {
+    Serial.print("DOWN");
+    return 255; //DOWN
+  }
+  else if (analog_value >= 95  && analog_value <= 105) {
+    Serial.print("UP");
+    return 100; //UP
+  }
+  else if (analog_value >= 0  && analog_value <= 5) {
+    Serial.print("RIGHT");
+    return 0;  //RIGHT
+  }
+}
