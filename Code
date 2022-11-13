@@ -1,5 +1,6 @@
 
-uint16_t button_value = 0;
+uint16_t button_value = 0, adc_value = 0;
+long previous_time1 = 0, previous_time2 = 0;
 
 void setup() {
   Serial.begin(9600);
@@ -7,13 +8,18 @@ void setup() {
 }
 
 void loop() {
-  button_value = GetButtonValue(ADC_Read(0));
-  Serial.print("    ADC 0 (Button Value): ");
-  Serial.print(button_value);
-  delay(50);
-  Serial.print("    ADC 13 (Pot Value): ");
-  Serial.println(ADC_Read(13));
-  delay(50);
+  if (millis() - previous_time1 >= 100) {
+    button_value = GetButtonValue(ADC_Read(0));
+    Serial.print("      ADC 0 (Button Value): ");
+    Serial.print(button_value);
+    previous_time1 = millis();
+  }
+  if (millis() - previous_time2 >= 100) {
+    adc_value = ADC_Read(13);
+    Serial.print("      ADC 13 (Pot Value): ");
+    Serial.println(adc_value);
+    previous_time2 = millis();
+  }
 }
 
 
@@ -30,15 +36,15 @@ void ADC_Init() {
 uint16_t ADC_Read(uint8_t ADC_pin) {
   uint16_t pot_value = 0;
   uint8_t potValueH = 0, potValueL = 0;
-  
+
   ADMUX  &= 0b11100000;
   DIDR0  = 0;
   DIDR1  = 0;
-  
+
   if (ADC_pin > 16 || ADC_pin < 0) {
     return 65535;
   }
-  
+
   else if (ADC_pin >= 0 && ADC_pin <= 15) {
     if (ADC_pin <= 7)  {
       ADCSRB &= (~(1 << MUX5));
@@ -49,18 +55,18 @@ uint16_t ADC_Read(uint8_t ADC_pin) {
       ADC_pin = ADC_pin - 8;
       DIDR1 |= (1 << ADC_pin);
     }
-    
+
     ADMUX  |= ADC_pin;        //channel activated
     ADCSRA |= (1 << ADSC);    // Start conversation
-    
+
     while (ADCSRA & (1 << ADSC));
-    
+
     potValueL = (ADCL | (0 << ADCL));
     potValueH = (ADCH | (0 << ADCH));
     potValueL = potValueL >> 6;
     pot_value = potValueH << 2;
     pot_value = (pot_value | potValueL);
-    
+
     return pot_value;
   }
 }
